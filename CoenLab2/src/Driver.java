@@ -16,6 +16,8 @@ import javax.swing.JLabel;
 
 import org.opencv.core.*;
 
+import com.atul.JavaOpenCV.Imshow;
+
 public class Driver {
 
 	public static void main(String[] args) throws NumberFormatException,
@@ -176,43 +178,21 @@ public class Driver {
 		int row = imageOriginal.get(0).length;
 		int col = imageOriginal.size();
 		
+		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		
 		Mat img = Mat.eye(row, col, CvType.CV_8UC1);
 		for (int i = 0; i < col; i++) {
 			for(int j = 0; j < row; j++) {
-				img.put(j, i, imageOriginal.get(j)[i]);
+				img.put(i, j, imageOriginal.get(i)[j]*255);
 			}
 		}
 		
-		BufferedImage img2 = Mat2BufferedImage(img);
-	    ImageIcon icon=new ImageIcon(img2);
-	    JFrame frame=new JFrame();
-	    frame.setLayout(new FlowLayout());        
-	    frame.setSize(img2.getWidth(null)+50, img2.getHeight(null)+50);     
-	    JLabel lbl=new JLabel();
-	    lbl.setIcon(icon);
-	    frame.add(lbl);
-	    frame.setVisible(true);
-	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		//debug print matrix
+		//System.out.println(img.dump());
+		Imshow im = new Imshow("image");
+		im.showImage(img);
+	
 	}
-	
-	public static BufferedImage Mat2BufferedImage(Mat m){
-		// source: http://answers.opencv.org/question/10344/opencv-java-load-image-to-gui/
-		// Fastest code
-		// The output can be assigned either to a BufferedImage or to an Image
-
-		    int type = BufferedImage.TYPE_BYTE_GRAY;
-		    if ( m.channels() > 1 ) {
-		        type = BufferedImage.TYPE_3BYTE_BGR;
-		    }
-		    int bufferSize = m.channels()*m.cols()*m.rows();
-		    byte [] b = new byte[bufferSize];
-		    m.get(0,0,b); // get all the pixels
-		    BufferedImage image = new BufferedImage(m.cols(),m.rows(), type);
-		    final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-		    System.arraycopy(b, 0, targetPixels, 0, b.length);  
-		    return image;
-		}
-	
 	
 	private static void printImage(ArrayList<char[]> imageOriginal) {
 		for (int i = 0; i < imageOriginal.size(); i++) {
