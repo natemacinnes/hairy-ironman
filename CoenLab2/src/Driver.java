@@ -1,20 +1,11 @@
-import java.awt.FlowLayout;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Scanner;
 
-import javax.imageio.ImageIO;
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-
-import org.opencv.core.*;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
 
 import com.atul.JavaOpenCV.Imshow;
 
@@ -24,70 +15,127 @@ public class Driver {
 			IOException {
 		// TODO Auto-generated method stub
 
-		//ArrayList<char[]> GSimage = readTxt("Grayscale Image Data.txt");
-		//ArrayList<char[]> Bimage = readTxt("Binary Image Data.txt");
+		ArrayList<int[]> GSimage = readTxt("Grayscale Image Data.txt");
+		ArrayList<int[]> Bimage = readTxt("Binary Image Data.txt");
 		ArrayList<int[]> S1image = readTxt("Slanted1Image-156x119.txt");
-		//ArrayList<char[]> S4image = readTxt("Slanted4Image-199x159.txt");
-		//ArrayList<char[]> S7image = readTxt("Slanted7Image-133x106.txt");
+		ArrayList<int[]> S4image = readTxt("Slanted4Image-199x159.txt");
+		ArrayList<int[]> S7image = readTxt("Slanted7Image-133x106.txt");
 
 		System.out.println();
 
-		printImageCV(S1image);
+		//printImageCV(S1image);
+		printImageCV(slantCorrection(S1image));
 		System.out.println();
-		// printImage(S4image);
-		System.out.println();
-		// printImage(S7image);
-		System.out.println();
+		//printImageCV(S4image);
+		//System.out.println();
+		//printImageCV(S7image);
+		//System.out.println();
 
 		// smootherGS(GSimage);
 	}
 
-	private void slantCorrection(ArrayList<char[]> imageOriginal) {
+	private static ArrayList<int[]> slantCorrection(ArrayList<int[]> imageOriginal) {
 		double m00 = 0, m01 = 0, m10 = 0, Mu11 = 0, Mu02 = 0, xc = 0, yc = 0;
-		int imageX = imageOriginal.get(0).length, imageY = imageOriginal.size();
+		double tan = 0, teta = 0;
+		int row = imageOriginal.get(0).length, col = imageOriginal.size();
+		int max = 0;
+		int min = 0;
+		int xNew = 0;
+		
+		ArrayList<int[]> imageCorrected = new ArrayList<int[]>();
+		ArrayList<int[]> imageInverted = new ArrayList<int[]>();
 
-		ArrayList<char[]> imageCorrected = new ArrayList<char[]>();
-		ArrayList<char[]> imageInverted = new ArrayList<char[]>();
-
+		System.out.println("xc: " + xc);
+		System.out.println("yc: " + yc);
+		
 		imageInverted = invertImage(imageOriginal);
+		System.out.println("row: " + row + "col: " + col);
+		printImageCV(imageInverted);
 
-		for (int i = 0; i < imageX; i++) {
-			for (int j = 0; j < imageY; j++) {
-				m00 = m00 + imageInverted.get(j)[i];
-				m01 = m01 + j * imageInverted.get(j)[i];
-				m10 = m10 + i * imageInverted.get(j)[i];
+		
+		for (int i = 0; i < row; i++) {
+			for (int j = 0; j < col; j++) {
+				m00 = m00 + imageInverted.get(i)[j];
+				m01 = m01 + j * imageInverted.get(i)[j];
+				m10 = m10 + i * imageInverted.get(i)[j];
 			}
 		}
 
 		xc = m10 / m00;
 		yc = m01 / m00;
-
-		for (int i = 0; i < imageX; i++) {
-			for (int j = 0; j < imageY; j++) {
-				Mu11 = Mu11 + (i - xc) * (j - yc) * imageInverted.get(j)[i];
-				Mu02 = Mu02 + Math.pow(j - yc, 2) * imageInverted.get(j)[i];
+		
+		System.out.println("xc: " + xc);
+		System.out.println("yc: " + yc);
+		
+		for (int i = 0; i < row; i++) {
+			for (int j = 0; j < col; j++) {
+				Mu11 = Mu11 + (i - xc) * (j - yc) * imageInverted.get(i)[j];
+				Mu02 = Mu02 + Math.pow(j - yc, 2) * imageInverted.get(i)[j];
 			}
 		}
-
+		
+		tan = -Mu11/Mu02;
+		teta = (180/Math.PI)*Math.atan(tan);
+		
+		System.out.println();
+		System.out.println("tan: " + tan);
+		System.out.println("teta: " + teta);
+		
+		for (int i = 0; i < row; i++) {
+			for (int j = 0; j < col; j++){
+				int a = (int) (i - (j - yc)*tan);
+				if (a > max) {
+					max = a;
+				}
+				if (a < min)
+					min = a;
+			}
+		}
+		
+		int row_new = row;
+		int col_new = col;
+		
+		for (int i = 0; i < row; i++) {
+			for (int j = 0; j < col; j++) {
+				xNew = (int) (i - ((j - yc)*tan));
+				if (xNew >= 0 && xNew < row) {
+					imageCorrected.get((int) xNew)[j] = imageOriginal.get(i)[j];
+				}		
+			}
+		}
+		
+		return imageCorrected;
 	}
 
-	public ArrayList<char[]> invertImage(ArrayList<char[]> imageOriginal) {
-		ArrayList<char[]> imageInverted = new ArrayList<char[]>();
-		char[] invertedRow = new char[imageOriginal.get(0).length];
-
+	public static ArrayList<int[]> invertImage(ArrayList<int[]> imageOriginal) {
+		ArrayList<int[]> imageInverted = new ArrayList<int[]>();
+		int[] invertedRow = new int[imageOriginal.get(0).length];
+		int row = imageOriginal.get(0).length;
+		int col = imageOriginal.size();
+		
+		
 		for (int i = 0; i < imageOriginal.size(); i++) {
-			for (int j = 0; j < imageOriginal.get(i).length; i++) {
-				invertedRow[j] = (char) (1 - imageOriginal.get(i)[j]);
-			}
-			imageOriginal.add(invertedRow);
-		}
 
+			for (int j = 0; j < imageOriginal.get(0).length; j++) {
+				int[] emptyRow = new int[row];
+				emptyRow[j] = -1;
+				imageInverted.add(emptyRow);
+			}
+		}
+		
+		for (int i = 0; i < col; i++) {
+			for (int j = 0; j < row; j++) {
+				
+				imageInverted.get(i)[j] = (1 - imageOriginal.get(i)[j]);
+			}
+		}
+		
 		return imageInverted;
 	}
 
 	// Smooths grayscale images matrices using 1/16 wighted mask
-	private void smootherGS(ArrayList<Integer[]> imageOriginal) {
-		ArrayList<Integer[]> imageCleaned = new ArrayList<Integer[]>();
+	private void smootherGS(ArrayList<int[]> imageOriginal) {
+		ArrayList<int[]> imageCleaned = new ArrayList<int[]>();
 
 		// Prints original image for reference
 		// printImage(imageOriginal);
@@ -97,7 +145,7 @@ public class Driver {
 		for (int i = 0; i < imageOriginal.size(); i++) {
 
 			for (int j = 0; j < imageOriginal.get(0).length; j++) {
-				Integer[] emptyRow = new Integer[imageOriginal.get(0).length];
+				int[] emptyRow = new int[imageOriginal.get(0).length];
 				emptyRow[j] = -1;
 				imageCleaned.add(emptyRow);
 			}
@@ -177,7 +225,7 @@ public class Driver {
 	private static void printImageCV(ArrayList<int[]> imageOriginal) {
 		int row = imageOriginal.get(0).length;
 		int col = imageOriginal.size();
-		
+				System.out.println("row: " + row + "col: " + col);
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		Mat img = Mat.eye(row, col, CvType.CV_8UC1);
@@ -187,8 +235,7 @@ public class Driver {
 			}
 		}
 		
-		//debug print matrix
-		//System.out.println(img.dump());
+		System.out.println("row: " + row + "col: " + col);
 		Imshow im = new Imshow("image");
 		im.showImage(img);
 	
